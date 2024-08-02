@@ -1,7 +1,7 @@
 ## CSLang - C Stack (based) Language
 (note: this project is practically useless and is only used for me to learn how to write programming languages)
 
-CSlang is a stack based "programming" ""language"" written in C\
+CSLang is a stack based "programming" ""language"" written in C\
 there are no variables, only the stack itself (and maybe a singular register in the future)\
 
 ### Installation
@@ -26,3 +26,10 @@ make clean
   - adds/subtracts from the last 2 ints in the stack, pushes the result
 - PRINT <string?>
   - if an arg is provided, print will well, print it to stdout, otherwise it will print the leading int in the stack
+  
+### Limitations
+1. there can be only 256 commands in the script (can be changed in the source file)
+2. the stack has a depth limit of 256 ints (also can be changed in the source file)
+3. there will be no more than 1024 characters in a line (you know what im about to write)
+
+> example scripts are provided in ./scripts if you want to see how things work in practice :)
