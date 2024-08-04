@@ -26,6 +26,10 @@ make clean
   - adds/subtracts from the last 2 ints in the stack, pushes the result
 - PRINT <string?>
   - if an arg is provided, print will well, print it to stdout, otherwise it will print the leading int in the stack
+- GOTO/GOEQ
+  - will jump to a label, GOEQ will only jump if the 2 top ints in the stack are equal
+- HALT
+  - will exit the program, returning 0
   
 ### Limitations
 1. there can be only 256 commands in the script (can be changed in the source file)

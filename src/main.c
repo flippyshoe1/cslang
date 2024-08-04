@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define LEN(a) (sizeof(a) / sizeof(a)[0])
 #define ASSERT(_e, ...) { if(!(_e)) {fprintf(stderr, __VA_ARGS__); exit(1);} }
@@ -9,10 +10,17 @@
 #define PRO_STACK_DEPTH 256
 #define CHARACTER_PER_LINE_LIMIT 1024
 
+/* __TODO:__
+ * 1. less spaghetti in my code please :)
+ * 2. more comments for clarity, most of these functions seem like eldritch magic from a first glance
+ * 3. implement more commands, add a stack
+ * 4. get rid of res from the switch
+ */
+
 /* available commands as enums */
 typedef enum {
   INVALID=0, // special enum that marks an invalid line
-  PUSH, POP, ADD, SUB, PRINT
+  PUSH, POP, ADD, SUB, PRINT, GOTO, GOEQ, HALT
 } opcode;
 
 /* lookup table for enums to cut me some work */
@@ -25,6 +33,9 @@ const struct {
   {ADD,   "ADD"},
   {SUB,   "SUB"},
   {PRINT, "PRINT"},
+  {GOTO, "GOTO"},
+  {GOEQ, "GOEQ"},
+  {HALT, "HALT"}
 };
 
 // returns -1 if the string isnt a valid enum
@@ -34,6 +45,15 @@ str_to_opcode(char *str){
     if(!strcmp(str, opcode_lookup[i].key))
       return opcode_lookup[i].value;
 
+  return INVALID;
+}
+
+opcode
+strn_to_opcode(char *str, long len){
+  for(size_t i=0;i<LEN(opcode_lookup);++i)
+    if(!strncmp(str, opcode_lookup[i].key, len))
+      return opcode_lookup[i].value;
+  
   return INVALID;
 }
 
@@ -52,7 +72,34 @@ first_available_spot(){
   return -1;
 }
 
+struct {
+  char label[CHARACTER_PER_LINE_LIMIT];
+  int i;
+} label_stack[CMD_STACK_DEPTH];
+
+static int
+first_available_label(){
+  for(int i=0;i<CMD_STACK_DEPTH;++i)
+    if(label_stack[i].i==0)
+      return i;
+
+  return -1;
+}
+
+bool
+is_command(char str[]){
+  char *p = strchr(str, ' ');
+
+  return strn_to_opcode(str, p-&str[0]);
+}
+
+bool
+is_label(char str[]){
+  return str[strlen(str)-1]==':';
+}
+
 // returns the index of the new command in the stack
+// -1 means no index available
 int
 append_command(char str[]){
   int index = first_available_spot();
@@ -74,6 +121,49 @@ append_command(char str[]){
 }
 
 int
+string_strip(char *str){
+    bool conf = false;
+    int index=0;
+    for(size_t i=0;i<strlen(str);++i){
+        if(str[i]==' '){
+            if(conf) {index=i; conf=false;}
+            else continue;
+        }
+        else conf=true;
+    }
+    if(!conf) str[index]='\0';
+    return strlen(str);
+}
+
+int
+append_label(char str[]){
+  int index = first_available_label();
+  ASSERT(index!=-1, "unable to find free space in the stack\n");
+
+  str[strlen(str)-1]='\0';
+  (void)string_strip(str);
+  
+  strncpy(label_stack[index].label, str, strlen(str));
+  label_stack[index].i=first_available_spot()-1; // in a better world, this would find the command the label is going to point to without subracting 1
+                                                 // unfortunately, we dont live in such world.
+
+  return index;
+}
+
+int
+get_index_from_label(char str[]){
+  for(size_t i=0;i<LEN(label_stack);++i){
+    if(label_stack[i].i==0)
+      break;
+
+    if(!strcmp(str, label_stack[i].label))
+      return label_stack[i].i;
+  }
+
+  return -1;
+}
+
+int
 main(int argc, char **argv){
   ASSERT(argc>1, "insufficient amount of args\n");
   
@@ -89,7 +179,12 @@ main(int argc, char **argv){
     char *line = strtok(buffer, "\n"); // it doesnt point to a literal so things SHOULD be fine... right?
     fseek(script, -(rlen-strlen(line))+1, SEEK_CUR);
 
-    append_command(line);
+    if(is_command(line))
+      append_command(line);
+    else if(is_label(line))
+      append_label(line);
+    else
+      continue;
   }
   
   // step two: go through the serialised product and execute the commands
@@ -133,10 +228,29 @@ main(int argc, char **argv){
 
       break;
 
+      // the following to commands do the exact same thing, only one has a condition
+    case GOTO:
+      (void)string_strip(cmd_stack[i].arg);
+      res=get_index_from_label(cmd_stack[i].arg);
+      ASSERT(res>-1, "failed to find label: %s\n", cmd_stack[i].arg);
+      i=res;
+      break;
+
+    case GOEQ:
+      if(*(ps_pointer)!=*(ps_pointer-1)) break;
+      
+      (void)string_strip(cmd_stack[i].arg);
+      res=get_index_from_label(cmd_stack[i].arg);
+      ASSERT(res>-1, "failed to find label: %s\n", cmd_stack[i].arg);
+      i=res;
+      break;
+    
+    case HALT:
+      exit(0);
+      
     default:
       break;
     }
-    
   }
   
   fclose(script);
