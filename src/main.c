@@ -20,7 +20,11 @@
 /* available commands as enums */
 typedef enum {
   INVALID=0, // special enum that marks an invalid line
-  PUSH, POP, ADD, SUB, PRINT, GOTO, GOEQ, HALT
+  PUSH, POP, ADD, SUB,
+  PRINT, READ,
+  GOTO, GOEQ, GOHI, GOLO, GOREQ,
+  HALT, RAND,
+  RSET, RINC, RDEC
 } opcode;
 
 /* lookup table for enums to cut me some work */
@@ -28,14 +32,26 @@ const struct {
   opcode value;
   char *key;
 } opcode_lookup[] = {
-  {PUSH,  "PUSH"},
-  {POP,   "POP"},
-  {ADD,   "ADD"},
-  {SUB,   "SUB"},
+  {PUSH,  "PUSH" },
+  {POP,   "POP"  },
+  {ADD,   "ADD"  },
+  {SUB,   "SUB"  },
+  
   {PRINT, "PRINT"},
-  {GOTO, "GOTO"},
-  {GOEQ, "GOEQ"},
-  {HALT, "HALT"}
+  {READ,  "READ" },
+  
+  {GOTO,  "GOTO" },
+  {GOEQ,  "GOEQ" },
+  {GOHI,  "GOHI" },
+  {GOLO,  "GOLO" },
+  {GOREQ, "GOREQ"},
+  
+  {HALT,  "HALT" },
+  {RAND,  "RAND" },
+
+  {RSET,  "RSET" },
+  {RINC,  "RINC" },
+  {RDEC,  "RDEC" }
 };
 
 // returns -1 if the string isnt a valid enum
@@ -189,6 +205,7 @@ main(int argc, char **argv){
   
   // step two: go through the serialised product and execute the commands
   int program_stack[256] = {0};
+  int program_register = 0;
   int *ps_pointer = &program_stack[0];
   
   for(int i=0;i<CMD_STACK_DEPTH;++i){
@@ -228,7 +245,14 @@ main(int argc, char **argv){
 
       break;
 
-      // the following to commands do the exact same thing, only one has a condition
+    case READ:
+      ps_pointer+=1;
+      (void)scanf("%d", &res);
+      *ps_pointer=res;
+      break;
+
+
+      // the following two commands do the exact same thing, only one has a condition
     case GOTO:
       (void)string_strip(cmd_stack[i].arg);
       res=get_index_from_label(cmd_stack[i].arg);
@@ -244,9 +268,56 @@ main(int argc, char **argv){
       ASSERT(res>-1, "failed to find label: %s\n", cmd_stack[i].arg);
       i=res;
       break;
-    
+
+    case GOLO:
+      if(*(ps_pointer)>=*(ps_pointer-1)) break;
+      
+      (void)string_strip(cmd_stack[i].arg);
+      res=get_index_from_label(cmd_stack[i].arg);
+      ASSERT(res>-1, "failed to find label: %s\n", cmd_stack[i].arg);
+      i=res;
+      break;
+
+    case GOHI:
+      if(*(ps_pointer)<=*(ps_pointer-1)) break;
+      
+      (void)string_strip(cmd_stack[i].arg);
+      res=get_index_from_label(cmd_stack[i].arg);
+      ASSERT(res>-1, "failed to find label: %s\n", cmd_stack[i].arg);
+      i=res;
+      break;
+
+    case GOREQ:
+      if(*(ps_pointer)!=program_register) break;
+      
+      (void)string_strip(cmd_stack[i].arg);
+      res=get_index_from_label(cmd_stack[i].arg);
+      ASSERT(res>-1, "failed to find label: %s\n", cmd_stack[i].arg);
+      i=res;
+      break;
+      
     case HALT:
       exit(0);
+      break; // it wont ever reach here im just adding this for formality
+
+    case RAND:
+      ps_pointer+=1;
+      // i dare you to write something uglier
+      res=(cmd_stack[i].arg[0]!='\0')?rand()%atoi(cmd_stack[i].arg):rand();
+      *ps_pointer=res;
+      break;
+
+    case RSET:
+      program_register=atoi(cmd_stack[i].arg);
+      break;
+
+    case RINC:
+      program_register+=1;
+      break;
+
+    case RDEC:
+      program_register-=1;
+      break;
       
     default:
       break;
