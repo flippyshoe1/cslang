@@ -2,7 +2,7 @@
 (note: this project is practically useless and is only used for me to learn how to write programming languages)
 
 CSLang is a stack based "programming" ""language"" written in C\
-there are no variables, only the stack itself (and maybe a singular register in the future)\
+there are no variables, only the stack itself and a singular register.
 
 ### Installation
 ```bash
